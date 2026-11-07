@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f6b3a">
+  <!-- Ne pas apparaître dans Google ni dans les autres moteurs de recherche -->
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta name="description" content="Créez des itinéraires vélo qui évitent les routes, en aller simple ou en boucle, avec vos points d'intérêt.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sentiers Vélo">
+  <title>Sentiers Vélo</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map" aria-label="Carte"></div>
+  <div id="map3d" hidden aria-label="Vue 3D du guidage"></div>
+
+  <div class="fabs">
+    <button id="btnLocate" class="fab" title="Centrer sur ma position" aria-label="Ma position">◎</button>
+    <button id="btnFollow" class="fab" title="Suivre ma position pendant la sortie" aria-label="Suivi">🚴</button>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="offlineBadge" hidden>Hors connexion</div>
+
+  <section id="nav" hidden aria-live="polite">
+    <div class="nav-main">
+      <div id="navArrow">↑</div>
+      <div class="nav-txt"><div id="navDist">–</div><div id="navText"></div></div>
+    </div>
+    <div id="navOff" hidden>
+      <span>⚠️ Hors itinéraire <small id="navOffDist"></small></span>
+      <button id="navReroute">Recalculer</button>
+    </div>
+    <div class="nav-sub">
+      <span id="navRemain"></span>
+      <button id="nav3d" aria-label="Basculer entre vue 3D et 2D">2D</button>
+      <button id="navMute" aria-label="Couper ou activer la voix">🔊</button>
+      <button id="navStop">✕ Arrêter</button>
+    </div>
+  </section>
+  <div id="busy" hidden><span class="spinner"></span><span id="busyText">Calcul…</span><button id="btnCancel" class="ghost">Annuler</button></div>
+
+  <section id="sheet" class="sheet" data-snap="half">
+    <div class="sheet-head" id="sheetHead">
+      <div class="grab" id="sheetGrab" role="button" aria-label="Agrandir ou réduire le panneau"><span></span></div>
+      <div class="mini" id="miniStats" hidden></div>
+      <nav class="tabs" role="tablist">
+        <button data-tab="route" class="active" role="tab"><span>🗺️</span>Itinéraire</button>
+        <button data-tab="poi" role="tab"><span>⭐</span>Lieux</button>
+        <button data-tab="saved" role="tab"><span>📁</span>Mes parcours</button>
+      </nav>
+    </div>
+
+    <div class="tab" id="tab-route">
+      <!-- Résultat (affiché en premier une fois l'itinéraire calculé) -->
+      <div id="result" class="card" hidden>
+        <div class="result-head">
+          <span id="resTitle" class="res-title"></span>
+          <span id="resPrio" class="badge"></span>
+        </div>
+        <div id="dirtyNote" class="dirty" hidden>✏️ Réglages modifiés : appuyez sur « Recalculer » pour mettre à jour le tracé.</div>
+        <div class="stats">
+          <div><b id="stDist">–</b><small>distance</small></div>
+          <div><b id="stTime">–</b><small>durée</small></div>
+          <div><b id="stUp">–</b><small>dénivelé +</small></div>
+          <div><b id="stOff">–</b><small>hors route</small></div>
+        </div>
+        <div class="surfbar" id="surfBar"></div>
+        <div class="legend">
+          <span><i class="c-off"></i>Chemins &amp; pistes</span>
+          <span><i class="c-calm"></i>Petites routes</span>
+          <span><i class="c-road"></i>Routes</span>
+        </div>
+        <canvas id="elev" height="110" aria-label="Profil altimétrique"></canvas>
+        <details class="more roadbook" id="roadbook" hidden>
+          <summary>📋 Feuille de route <small id="roadbookCount"></small></summary>
+          <ol id="roadbookList" class="list rb"></ol>
+        </details>
+        <button id="btnNav" class="primary block">🧭 Démarrer le guidage</button>
+        <div class="tiles">
+          <button id="btnShare"><span>🔗</span>Partager</button>
+          <button id="btnOffline"><span>📥</span>Hors ligne</button>
+          <button id="btnSave"><span>💾</span>Enregistrer</button>
+          <button id="btnGpx"><span>⬇️</span>GPX</button>
+          <button id="btnPoiRoute"><span>✨</span>Lieux à voir</button>
+        </div>
+        <p class="hint" id="routeNote"></p>
+      </div>
+
+      <button id="planToggle" class="plan-toggle" hidden aria-expanded="false">
+        <span id="planSummary"></span><span class="chev">Modifier ▾</span>
+      </button>
+
+      <!-- Préparation du parcours -->
+      <div id="planForm">
+        <div class="seg" id="modeSeg">
+          <button data-mode="ab" class="active">📍 A → B</button>
+          <button data-mode="loop">↻ Boucle</button>
+        </div>
+
+        <div class="wp-box">
+          <div class="wp field">
+            <span class="dot a">A</span>
+            <input id="inStart" autocomplete="off" enterkeyhint="search" placeholder="Départ : adresse, lieu…">
+            <button id="btnStartGps" class="icon" title="Utiliser ma position" aria-label="Utiliser ma position">◎</button>
+            <ul class="suggest" id="sugStart"></ul>
+          </div>
+          <div class="wp field" id="fieldEnd">
+            <span class="dot b">B</span>
+            <input id="inEnd" autocomplete="off" enterkeyhint="search" placeholder="Arrivée : adresse, lieu…">
+            <button id="btnSwap" class="icon" title="Inverser départ et arrivée" aria-label="Inverser">⇅</button>
+            <ul class="suggest" id="sugEnd"></ul>
+          </div>
+        </div>
+        <p class="hint">Ou touchez la carte pour placer un point.</p>
+
+        <div id="fieldLoop" hidden>
+          <div class="field">
+            <label for="loopKm">Distance de la boucle <output id="loopKmOut" class="big-out">30 km</output></label>
+            <input type="range" id="loopKm" min="5" max="150" step="5" value="30">
+          </div>
+          <div class="field">
+            <label for="loopDir">Partir vers</label>
+            <select id="loopDir">
+              <option value="auto">🎲 Au hasard</option>
+              <option value="0">⬆️ Nord</option>
+              <option value="90">➡️ Est</option>
+              <option value="180">⬇️ Sud</option>
+              <option value="270">⬅️ Ouest</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="viaBox" hidden>
+          <label>Étapes</label>
+          <ol id="viaList" class="list"></ol>
+        </div>
+
+        <label class="sec-label">Éviter les routes</label>
+        <div class="seg seg3" id="avoidSeg">
+          <button data-avoid="1">Faible</button>
+          <button data-avoid="2">Moyen</button>
+          <button data-avoid="3">Fort</button>
+        </div>
+
+        <label class="sec-label">Optimiser pour</label>
+        <div class="prio" id="optimSeg">
+          <button data-optim="balade"><span>🌲</span>Balade</button>
+          <button data-optim="rapide"><span>⚡</span>Plus rapide</button>
+          <button data-optim="court"><span>📏</span>Plus court</button>
+        </div>
+        <p class="hint" id="prioHint"></p>
+
+        <details class="more" id="moreOpts">
+          <summary>Plus d'options <small id="moreSummary"></small></summary>
+          <div class="row2">
+            <div class="field">
+              <label for="bike">Vélo</label>
+              <select id="bike">
+                <option value="gravel">Gravel / VTC</option>
+                <option value="vtt">VTT</option>
+                <option value="ville">Vélo de ville</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="hills">Dénivelé</label>
+              <select id="hills">
+                <option value="any">Peu importe</option>
+                <option value="avoid">Éviter les côtes</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="forest"> Privilégier forêts et bords de rivière</label>
+        </details>
+      </div>
+      <p class="powered">Powered by <b>F.CHAZE</b></p>
+    </div>
+
+    <div class="tab" id="tab-poi" hidden>
+      <h3>Lieux à voir</h3>
+      <p class="hint">Autour de votre itinéraire, ou dans la zone visible de la carte s'il n'y en a pas.</p>
+      <div class="chips" id="poiCats"></div>
+      <div class="actions">
+        <button id="btnSuggest" class="primary">✨ Trouver des lieux</button>
+        <button id="btnClearSuggest" class="ghost">Masquer</button>
+      </div>
+      <p class="hint" id="suggestInfo"></p>
+      <ul id="suggList" class="list"></ul>
+
+      <h3>Mes points</h3>
+      <p class="hint">Touchez la carte puis « Nouveau point d'intérêt ».</p>
+      <ul id="myPoiList" class="list"></ul>
+      <div class="actions wrap">
+        <button id="btnExportPoi">Exporter</button>
+        <label class="button">Importer<input type="file" id="fileImportPoi" accept=".json,application/json" hidden></label>
+      </div>
+      <p class="powered">Powered by <b>F.CHAZE</b></p>
+    </div>
+
+    <div class="tab" id="tab-saved" hidden>
+      <h3>Parcours enregistrés</h3>
+      <ul id="savedList" class="list"></ul>
+      <div class="actions wrap">
+        <label class="button">📂 Importer un GPX<input type="file" id="fileImportGpx" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></label>
+      </div>
+      <p class="hint">Pour partager un parcours avec un ami : ouvrez-le puis « 🔗 Partager ». Il reçoit un lien qui ouvre le même parcours (et vos points d'intérêt proches) dans l'application.</p>
+      <h3>Cartes hors ligne</h3>
+      <ul id="packList" class="list"></ul>
+      <p class="hint" id="storageInfo"></p>
+      <p class="powered">Powered by <b>F.CHAZE</b></p>
+    </div>
+
+    <div class="sheet-foot" id="sheetFoot">
+      <button id="btnRoute" class="primary">Calculer l'itinéraire</button>
+      <button id="btnFootNav" class="primary" hidden>🧭 Démarrer le guidage</button>
+      <button id="btnOtherLoop" hidden title="Proposer une autre boucle">↻ Autre</button>
+      <button id="btnClear" class="icon ghost" title="Tout effacer" aria-label="Tout effacer">🗑</button>
+    </div>
+  </section>
+
+  <dialog id="poiDialog">
+    <form method="dialog" id="poiForm">
+      <h3 id="poiDialogTitle">Nouveau point d'intérêt</h3>
+      <label>Nom <input name="name" required maxlength="80" placeholder="Ex. : belle vue sur la vallée"></label>
+      <label>Catégorie <select name="cat" id="poiCatSelect"></select></label>
+      <label>Note <textarea name="note" rows="3" maxlength="500" placeholder="Ce qu'il y a à voir, conseils…"></textarea></label>
+      <div class="actions">
+        <button value="save" class="primary">Enregistrer</button>
+        <button value="cancel" formnovalidate class="ghost">Annuler</button>
+        <button value="delete" formnovalidate class="danger" id="poiDelete">Supprimer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <dialog id="shareDialog">
+    <form method="dialog">
+      <h3>👥 Parcours partagé</h3>
+      <p><b id="shareTitle"></b><br><span id="shareInfo" class="hint"></span></p>
+      <div class="actions">
+        <button value="open" class="primary">Ouvrir le parcours</button>
+        <button value="cancel" class="ghost">Ignorer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+  <script src="extras.js"></script>
+</body>
+</html>
