@@ -170,7 +170,8 @@ addEventListener('pagehide', recPersist);
 
 const isLoopTrack = (t) => t.length > 2 && hav(cll(t[0]), cll(t[t.length - 1])) < 250;
 function rideItem(r, name) {
-  return { id: uid(), name, date: r.t0, kind: r.kind, planned: r.planned, track: r.track, stats: r.stats, loop: isLoopTrack(r.track) };
+  const reportsDone = typeof reportsBetween === 'function' ? reportsBetween(r.t0, Date.now()) : [];
+  return { id: uid(), name, date: r.t0, kind: r.kind, planned: r.planned, track: r.track, stats: r.stats, loop: isLoopTrack(r.track), reports: reportsDone };
 }
 function addToHistory(r, name) {
   pushItem('history', rideItem(r, name), HISTORY_MAX);
@@ -261,7 +262,8 @@ function openRide(it) {
     $('#stTime').textContent = fmtClock(it.stats.elapsed);
     $('#miniStats').textContent = `${fmtKm(it.stats.dist)} · ${fmtClock(it.stats.elapsed)} · ${fmtSpeed(it.stats.dist, it.stats.moving)}`;
   }
-  $('#routeNote').textContent = 'Trajet enregistré au GPS : « 🧭 Démarrer le guidage » pour le refaire (le guidage suit le tracé et vous alerte si vous vous en écartez), « ⬇️ GPX » pour l’exporter.';
+  const nRep = typeof showRideReports === 'function' ? showRideReports(it) : 0;
+  $('#routeNote').textContent = (nRep ? `⚠️ ${nRep} signalement(s) fait(s) pendant cette sortie, affichés sur la carte. ` : '') + 'Trajet enregistré au GPS : « 🧭 Démarrer le guidage » pour le refaire (le guidage suit le tracé et vous alerte si vous vous en écartez), « ⬇️ GPX » pour l’exporter.';
 }
 
 function renderRideList(key, ul, emptyMsg) {
@@ -271,7 +273,7 @@ function renderRideList(key, ul, emptyMsg) {
     const s = it.stats || {};
     const li = document.createElement('li');
     li.innerHTML = `<span>${it.loop ? '↻' : '→'}</span><span class="grow"><b>${esc(it.name)}</b>
-      <small>${fmtDate(it.date)} · ${fmtKm(s.dist || 0)} · ${fmtClock(s.elapsed || 0)} · ${fmtSpeed(s.dist, s.moving)}${s.up ? ` · ${s.up} m D+` : ''}</small></span>
+      <small>${fmtDate(it.date)} · ${fmtKm(s.dist || 0)} · ${fmtClock(s.elapsed || 0)} · ${fmtSpeed(s.dist, s.moving)}${s.up ? ` · ${s.up} m D+` : ''}${it.reports?.length ? ` · ⚠️ ${it.reports.length}` : ''}</small></span>
       ${key === 'history' ? '<button class="keep" aria-label="Copier dans Mes créations" title="Copier dans Mes créations">✏️</button>' : ''}
       <button class="del" aria-label="Supprimer">🗑</button>`;
     li.querySelector('.grow').addEventListener('click', () => openRide(it));

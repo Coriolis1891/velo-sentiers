@@ -549,6 +549,7 @@ map.on('click', (e) => {
   if (state.mode === 'ab') items.push(['🏁 Arrivée ici', () => setPoint('end', ll)]);
   items.push(['➕ Passer par ici (étape)', () => setPoint('via', ll)]);
   items.push(["📍 Nouveau point d'intérêt", () => openPoiDialog({ lat: ll.lat, lng: ll.lng })]);
+  if (typeof openReport === 'function') items.push(['⚠️ Signaler un problème ici', () => openReport(ll)]);
   items.forEach(([t, fn]) => {
     const b = document.createElement('button'); b.textContent = t;
     b.addEventListener('click', () => { map.closePopup(); fn(); });
@@ -1091,6 +1092,7 @@ function toGpx(r, name) {
   if (state.end && state.mode === 'ab') add(state.end, 'Arrivée', 'Flag, Red');
   const samples = sampleRoute(r, 400);
   state.myPois.forEach((p) => { if (nearestOnRoute(r, samples, p).d < 500) add(p, `${MY_CATS[p.cat]?.[0] || ''} ${p.name}`, 'Scenic Area'); });
+  if (typeof reportsNear === 'function') reportsNear(r, samples).forEach((rp) => add(rp, `${repCat(rp.cat)[0]} ${repCat(rp.cat)[1]}${rp.note ? ' – ' + rp.note : ''}`, 'Danger Area'));
   const trk = r.coords.map((c) => `<trkpt lat="${c[1]}" lon="${c[0]}">${c[2] != null ? `<ele>${c[2]}</ele>` : ''}</trkpt>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Sentiers Vélo" xmlns="http://www.topografix.com/GPX/1/1">

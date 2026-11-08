@@ -97,6 +97,7 @@ async function open3d() {
     m.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#fff', 'line-width': 12 } });
     m.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 7 } });
     ml.ready = true;
+    if (typeof reports3d === 'function') reports3d(m);
   });
 }
 function close3d() {
@@ -185,6 +186,7 @@ function prepareNav(r) {
     .map(([idx, cmd, exit]) => ({ idx, cmd, exit, at: r.cum[Math.min(idx, r.cum.length - 1)] }));
   nav.hints.push({ idx: r.coords.length - 1, cmd: 100, exit: 0, at: r.cum[r.cum.length - 1] });
   nav.k = 0; nav.pi = null; nav.along = 0; nav.offCount = 0; nav.announced = new Set(); nav.offAnnounced = false;
+  if (typeof reportsPrepare === 'function') reportsPrepare(r); // signalements situés sur le parcours
   // Position de chaque point de passage le long du tracé (pour le recalcul)
   const pts = r.pts || [];
   let from = null;
@@ -273,6 +275,7 @@ function onNavPosition(pos) {
   const remain = r.cum[r.cum.length - 1] - nav.along;
   const eta = new Date(Date.now() + (remain / 1000 / SPEED[settings.bike]) * 3600e3);
   $('#navRemain').textContent = `Reste ${fmtKm(remain)} · arrivée vers ${eta.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  if (typeof reportsOnNav === 'function') reportsOnNav(nav.along); // alerte à l'approche d'un signalement
 
   // Annonces : une à ~150 m, une juste avant le virage
   if (h.cmd === 100) {
@@ -495,6 +498,7 @@ async function shareRoute() {
   const samples = sampleRoute(r, 400);
   const pois = state.myPois.filter((p) => nearestOnRoute(r, samples, p).d < 500).slice(0, 30)
     .map((p) => [+p.lat.toFixed(5), +p.lng.toFixed(5), p.name, p.cat, (p.note || '').slice(0, 200)]);
+  if (typeof reportsNear === 'function') reportsNear(r, samples).slice(0, 30).forEach((rp) => pois.push([+rp.lat.toFixed(5), +rp.lng.toFixed(5), `${repCat(rp.cat)[0]} ${repCat(rp.cat)[1]}`, 'warn', (rp.note || '').slice(0, 200)]));
   const name = routeName();
   const obj = {
     v: 1, n: name, m: state.mode, km: Math.round(r.length / 100) / 10, auto: state.mode === 'loop' && !state.vias.some((v) => !v.auto) ? 1 : 0,

@@ -47,6 +47,8 @@
       <button id="navStop">✕ Arrêter</button>
     </div>
   </section>
+  <button id="btnReport" class="fab report-fab" hidden title="Signaler un problème ici" aria-label="Signaler un problème">⚠️</button>
+
   <!-- Enregistrement GPS d'un trajet -->
   <section id="recBar" hidden aria-live="polite">
     <div class="rec-top"><span class="rec-dot"></span><b id="recTitle">Enregistrement</b></div>
@@ -209,6 +211,10 @@
       <p class="hint" id="suggestInfo"></p>
       <ul id="suggList" class="list"></ul>
 
+      <h3>Mes signalements</h3>
+      <p class="hint">Problèmes signalés pendant vos sorties (bouton ⚠️) ou en touchant la carte. Ils restent affichés sur la carte et vous êtes prévenu à l'approche pendant le guidage.</p>
+      <ul id="reportList" class="list"></ul>
+
       <h3>Mes points</h3>
       <p class="hint">Touchez la carte puis « Nouveau point d'intérêt ».</p>
       <ul id="myPoiList" class="list"></ul>
@@ -310,6 +316,17 @@
   </dialog>
 
   <script src="extras.js"></script>
+  <dialog id="reportDialog">
+    <form method="dialog">
+      <h3>⚠️ Signaler un problème</h3>
+      <p class="hint" id="reportWhere"></p>
+      <div class="report-cats" id="reportCats"></div>
+      <label>Note (facultatif) <input id="reportNote" maxlength="200" placeholder="Ex. : arbre tombé, barrière fermée…"></label>
+      <div class="actions"><button value="cancel" class="ghost" formnovalidate>Annuler</button></div>
+    </form>
+  </dialog>
+
   <script src="rides.js"></script>
+  <script src="reports.js"></script>
 </body>
 </html>

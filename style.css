@@ -305,3 +305,12 @@ body.navigating #recBar { display: none; }
 .lib-seg button { font-size: 13px; padding: 8px 2px; }
 .lib-seg small { color: var(--muted); font-weight: 400; }
 .list li .tag { font-size: 11px; background: var(--bg-2); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
+
+/* ---------- Signalements ---------- */
+.report-fab { position: fixed; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 1160; width: 60px; height: 60px; font-size: 28px; background: #fff; border: 3px solid #e8a33d; }
+body.recording .report-fab { bottom: calc(196px + env(safe-area-inset-bottom)); }
+.report-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
+.report-cats button { display: flex; align-items: center; gap: 8px; min-height: 56px; text-align: left; font-weight: 600; font-size: 14px; border-radius: 12px; }
+.report-cats button span { font-size: 24px; }
+.pin.report span { border-color: #e8a33d; background: #fff8ec; }
+.report3d { font-size: 26px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
