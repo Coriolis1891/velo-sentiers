@@ -202,6 +202,7 @@ async function startNav() {
   if (state.follow) $('#btnFollow').click(); // le suivi simple est remplacé par la navigation
   prepareNav(r);
   nav.on = true;
+  if (typeof ridesOnNavStart === 'function') ridesOnNavStart(); // la sortie est enregistrée dans l'historique
   document.body.classList.add('navigating');
   $('#nav').hidden = false; $('#navOff').hidden = true;
   $('#navArrow').textContent = '📡'; $('#navDist').textContent = 'Recherche GPS…'; $('#navText').textContent = 'Placez-vous sur le parcours';
@@ -222,6 +223,7 @@ async function startNav() {
 
 function stopNav() {
   nav.on = false;
+  if (typeof ridesOnNavStop === 'function') ridesOnNavStop();
   if (nav.watch != null) navigator.geolocation.clearWatch(nav.watch);
   nav.watch = null; nav.lock?.release?.(); nav.lock = null;
   try { speechSynthesis.cancel(); } catch { /* */ }

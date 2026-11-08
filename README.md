@@ -18,12 +18,13 @@ Application mobile (web installable, « PWA ») pour créer des itinéraires vé
 - **Guidage virage par virage** (« 🧭 Démarrer le guidage ») : **vue 3D** inclinée qui tourne dans le sens de la marche, avec le relief (bouton 2D/3D), flèche et distance du prochain virage, annonces vocales en français (à ~150 m puis juste avant), vibrations, heure d'arrivée estimée, alerte « hors itinéraire » et recalcul depuis votre position (en repassant par vos étapes). L'écran reste allumé.
 - **Cartes hors ligne** (« 📥 Hors ligne ») : télécharge le Plan IGN (licence ouverte) sur un couloir de 300 m autour du parcours, zooms 11 à 16 (environ 0,4 Mo/km). Sans réseau, l'app s'ouvre, affiche la carte téléchargée et la navigation fonctionne (le GPS ne nécessite pas internet). Gestion et suppression dans « Mes parcours ».
 - **Partage entre amis** (« 🔗 Partager ») : un lien court qui ouvre le même parcours, avec les mêmes réglages et vos points d'intérêt proches du tracé, chez votre ami. **Import GPX** depuis Komoot, Strava, Garmin…
-- **Suivi** simple de position (🚴).
+- **Créer un trajet** (bouton ⏺ sur la carte) : enregistre votre sortie au GPS (pause possible), « ⏹ Terminer » la range dans **✏️ Mes créations**, prête à être refaite en guidage, partagée ou exportée en GPX. Un enregistrement interrompu (application fermée) est proposé à la reprise au lancement suivant.
+- **Historique automatique** (🕓) : chaque sortie faite avec le guidage, ou enregistrée, est gardée d'office avec la trace réelle, la distance, la durée et la vitesse moyenne (40 dernières sorties).
 - Fonds de carte : CyclOSM (spécial vélo), OpenStreetMap, topographique.
 
 Tout est stocké sur le téléphone (pas de compte, pas de serveur à vous).
 
-**Mémoire :** à chaque lancement, l'application démarre vide. Seuls sont conservés : les parcours enregistrés (« Mes parcours »), vos points d'intérêt, les cartes hors ligne et vos réglages. Le trajet en cours est oublié quand on ferme l'application (il survit à un simple rechargement de la page pendant une sortie).
+**Mémoire :** à chaque lancement, l'application démarre vide. Seuls sont conservés : les parcours enregistrés, vos créations et l'historique des sorties (« Mes parcours »), vos points d'intérêt, les cartes hors ligne et vos réglages. Le trajet en cours est oublié quand on ferme l'application (il survit à un simple rechargement de la page pendant une sortie).
 
 ## Mettre l'application en ligne (gratuit, 2 minutes)
 
@@ -65,6 +66,7 @@ index.html            interface
 style.css             styles (mobile d'abord, panneau latéral sur grand écran)
 app.js                logique (carte, calcul, boucle, POI, sauvegarde, GPX)
 extras.js             navigation guidée, cartes hors ligne, partage, import GPX
+rides.js              enregistrement GPS de trajets, Mes créations, Historique
 sw.js                 service worker (ouverture hors ligne)
 manifest.webmanifest  installation sur l'écran d'accueil
 profiles/gravel.brf   profil de calcul BRouter de base

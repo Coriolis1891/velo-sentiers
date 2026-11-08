@@ -24,7 +24,8 @@
 
   <div class="fabs">
     <button id="btnLocate" class="fab" title="Centrer sur ma position" aria-label="Ma position">◎</button>
-    <button id="btnFollow" class="fab" title="Suivre ma position pendant la sortie" aria-label="Suivi">🚴</button>
+    <button id="btnFollow" class="fab" hidden aria-label="Suivi">🚴</button>
+    <button id="btnRecord" class="fab rec" title="Créer un trajet : enregistrer ma sortie au GPS" aria-label="Créer un trajet (enregistrement GPS)">⏺</button>
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
@@ -44,6 +45,19 @@
       <button id="nav3d" aria-label="Basculer entre vue 3D et 2D">2D</button>
       <button id="navMute" aria-label="Couper ou activer la voix">🔊</button>
       <button id="navStop">✕ Arrêter</button>
+    </div>
+  </section>
+  <!-- Enregistrement GPS d'un trajet -->
+  <section id="recBar" hidden aria-live="polite">
+    <div class="rec-top"><span class="rec-dot"></span><b id="recTitle">Enregistrement</b></div>
+    <div class="rec-stats">
+      <div><b id="recDist">0 m</b><small>distance</small></div>
+      <div><b id="recTime">0:00</b><small>durée</small></div>
+      <div><b id="recSpeed">–</b><small>moyenne</small></div>
+    </div>
+    <div class="rec-btns">
+      <button id="recPause">⏸ Pause</button>
+      <button id="recStop" class="stop">⏹ Terminer</button>
     </div>
   </section>
   <div id="busy" hidden><span class="spinner"></span><span id="busyText">Calcul…</span><button id="btnCancel" class="ghost">Annuler</button></div>
@@ -206,12 +220,31 @@
     </div>
 
     <div class="tab" id="tab-saved" hidden>
-      <h3>Parcours enregistrés</h3>
-      <ul id="savedList" class="list"></ul>
-      <div class="actions wrap">
-        <label class="button">📂 Importer un GPX<input type="file" id="fileImportGpx" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></label>
+      <div class="seg seg3 lib-seg" id="libSeg">
+        <button data-lib="saved" class="active">💾 Enregistrés <small id="cntSaved"></small></button>
+        <button data-lib="created">✏️ Créations <small id="cntCreated"></small></button>
+        <button data-lib="history">🕓 Historique <small id="cntHistory"></small></button>
       </div>
-      <p class="hint">Pour partager un parcours avec un ami : ouvrez-le puis « 🔗 Partager ». Il reçoit un lien qui ouvre le même parcours (et vos points d'intérêt proches) dans l'application.</p>
+
+      <div id="lib-saved">
+        <ul id="savedList" class="list"></ul>
+        <div class="actions wrap">
+          <label class="button">📂 Importer un GPX<input type="file" id="fileImportGpx" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></label>
+        </div>
+        <p class="hint">Pour partager un parcours avec un ami : ouvrez-le puis « 🔗 Partager ». Il reçoit un lien qui ouvre le même parcours (et vos points d'intérêt proches) dans l'application.</p>
+      </div>
+
+      <div id="lib-created" hidden>
+        <button id="btnRecordNew" class="primary block">⏺ Créer un trajet (enregistrer ma sortie)</button>
+        <p class="hint">Appuyez, roulez, puis « ⏹ Terminer » : votre tracé devient un parcours que vous pourrez refaire en guidage, partager ou exporter.</p>
+        <ul id="createdList" class="list"></ul>
+      </div>
+
+      <div id="lib-history" hidden>
+        <p class="hint">Chaque sortie faite avec le guidage ou enregistrée est ajoutée ici automatiquement (les 40 dernières sont conservées).</p>
+        <ul id="historyList" class="list"></ul>
+      </div>
+
       <h3>Cartes hors ligne</h3>
       <ul id="packList" class="list"></ul>
       <p class="hint" id="storageInfo"></p>
@@ -253,6 +286,30 @@
   </dialog>
 
   <script src="app.js"></script>
+  <dialog id="recDialog">
+    <form method="dialog">
+      <h3>🏁 Trajet terminé</h3>
+      <div class="rec-stats in-dialog" id="recSummary"></div>
+      <label>Nom du trajet <input name="name" id="recName" maxlength="80"></label>
+      <div class="actions">
+        <button value="save" class="primary">Enregistrer dans Mes créations</button>
+        <button value="discard" class="danger" formnovalidate>Supprimer</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="recResume">
+    <form method="dialog">
+      <h3>⏺ Enregistrement interrompu</h3>
+      <p id="recResumeInfo" class="hint"></p>
+      <div class="actions wrap">
+        <button value="resume" class="primary">Reprendre</button>
+        <button value="finish">Terminer et enregistrer</button>
+        <button value="discard" class="danger">Supprimer</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="extras.js"></script>
+  <script src="rides.js"></script>
 </body>
 </html>

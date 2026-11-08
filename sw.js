@@ -1,7 +1,7 @@
 // Service worker : l'application et les cartes téléchargées fonctionnent sans réseau.
-const CACHE = 'sentiers-velo-v10';
+const CACHE = 'sentiers-velo-v11';
 const SHELL = [
-  './', 'index.html', 'style.css', 'app.js', 'extras.js', 'manifest.webmanifest', 'profiles/gravel.brf',
+  './', 'index.html', 'style.css', 'app.js', 'extras.js', 'rides.js', 'manifest.webmanifest', 'profiles/gravel.brf',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
 ];
