@@ -713,8 +713,23 @@ async function brouterRaw(points, profile, signal, nogos = []) {
   }
 }
 
-/** Calcule l'itinéraire passant par `points` avec le profil personnalisé, avec repli sur « trekking ». */
+/** Calcule l'itinéraire en contournant les zones interdites signalées (interdiction stricte,
+    ou forte pénalité si aucun autre passage n'existe). */
 async function brouter(points, signal, nogos = []) {
+  const hard = typeof forbiddenNogos === 'function' ? forbiddenNogos(points) : [];
+  if (!hard.length) return brouterCore(points, signal, nogos);
+  try {
+    return await brouterCore(points, signal, nogos.concat(hard));
+  } catch (e) {
+    if (signal?.aborted || !(e instanceof RouteError) || /timeout|retry/i.test(e.message)) throw e;
+    // Aucun passage sans traverser la zone : forte pénalité au lieu d'une interdiction
+    // (le message sous le résultat indique si le tracé passe effectivement par la zone)
+    return brouterCore(points, signal, nogos.concat(forbiddenNogos(points, 200)));
+  }
+}
+
+/** Calcule l'itinéraire passant par `points` avec le profil personnalisé, avec repli sur « trekking ». */
+async function brouterCore(points, signal, nogos = []) {
   let profile, note = '';
   try { profile = await getProfileId(false, signal); }
   catch (e) {
@@ -947,6 +962,16 @@ async function computeRoute() {
     if (!tmp.set('route', result)) tmp.set('route', null);
     if (!isDesktop()) setSnap('half'); // avant le cadrage, pour que le parcours soit visible au-dessus du panneau
     showRoute(result, true);
+    if (typeof reports !== 'undefined') {
+      const forb = reports.filter((x) => x.cat === 'forbidden');
+      if (forb.length) {
+        const smp = sampleRoute(result, Math.max(200, Math.ceil(result.length / 15)));
+        const ds = forb.map((x) => nearestOnRoute(result, smp, x).d);
+        const avoided = ds.filter((d) => d >= 18 && d < 400).length, crossed = ds.filter((d) => d < 18).length;
+        if (avoided) note = `⛔ ${avoided} zone${avoided > 1 ? 's' : ''} interdite${avoided > 1 ? 's' : ''} signalée${avoided > 1 ? 's' : ''} contournée${avoided > 1 ? 's' : ''}. ${note}`;
+        if (crossed) note = `⛔ Attention : le tracé traverse ${crossed} zone${crossed > 1 ? 's' : ''} interdite${crossed > 1 ? 's' : ''} signalée${crossed > 1 ? 's' : ''} (aucun autre passage, ou zone sur le départ, l'arrivée ou une étape) : soyez prudent. ${note}`;
+      }
+    }
     if (state.mode === 'loop' && result.overlap != null) {
       const ov = Math.round(result.overlap * 100);
       note = (ov <= 3 ? '✅ Vraie boucle : aucun aller-retour.' : `↔️ ${ov} % du parcours est emprunté deux fois (souvent inévitable près du départ ou en montagne). Essayez « ↻ Autre ».`) + (note ? ' ' + note : '');

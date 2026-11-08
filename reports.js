@@ -135,6 +135,19 @@ function reportsOnNav(along) {
     }
   }
 }
+/** Zones interdites signalées → zones « nogo » BRouter (rayon 20 m) pour les calculs d'itinéraire.
+    Sans poids : interdiction stricte ; avec poids : forte pénalité (quand aucun autre passage n'existe).
+    Une zone sur un point de départ, d'arrivée ou une étape est ignorée (sinon aucun trajet possible). */
+function forbiddenNogos(points, weight) {
+  const lats = points.map((p) => p.lat), lngs = points.map((p) => p.lng), m = 0.3; // ~30 km de marge
+  return reports.filter((r) => r.cat === 'forbidden'
+      && r.lat > Math.min(...lats) - m && r.lat < Math.max(...lats) + m
+      && r.lng > Math.min(...lngs) - m && r.lng < Math.max(...lngs) + m
+      && !points.some((p) => hav(p, r) < 60))
+    .slice(0, 100)
+    .map((r) => `${r.lng.toFixed(6)},${r.lat.toFixed(6)},20${weight ? ',' + weight : ''}`);
+}
+
 /** Signalements faits pendant une sortie (rattachés à la sortie dans l'historique). */
 function reportsBetween(t0, t1) {
   return reports.filter((rp) => rp.date >= t0 && rp.date <= t1 + 5000).map((rp) => ({ ...rp }));
