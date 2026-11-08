@@ -28,7 +28,8 @@ const saveReports = () => { if (!store.set('reports', reports)) toast('Mémoire 
 function reportPopup(rp, fromRide) {
   const [emoji, label] = repCat(rp.cat);
   const div = document.createElement('div'); div.className = 'ctx';
-  div.innerHTML = `<h4>${emoji} ${esc(label)}</h4><p>Signalé le ${new Date(rp.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}${fromRide ? ' (ancienne sortie)' : ''}</p>${rp.note ? `<p>${esc(rp.note)}</p>` : ''}`;
+  const dfr = (t) => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  div.innerHTML = `<h4>${emoji} ${esc(label)}</h4><p>Signalé le ${dfr(rp.date)}${fromRide ? ' (ancienne sortie)' : ''}${rp.confirmed ? `<br>👍 Toujours là le ${dfr(rp.confirmed)}` : ''}</p>${rp.note ? `<p>${esc(rp.note)}</p>` : ''}`;
   if (!fromRide) {
     const edit = document.createElement('button'); edit.textContent = '✏️ Modifier la note';
     edit.addEventListener('click', () => {
@@ -151,6 +152,63 @@ function showRideReports(it) {
     .forEach((rp) => L.marker([rp.lat, rp.lng], { icon: reportIcon(rp), opacity: 0.85 }).bindPopup(() => reportPopup(rp, true)).addTo(rideReportLayer));
   return list.length;
 }
+
+/* ------------------------------------------------------------------ */
+/* « Toujours là ? » : quand on passe sur un signalement existant      */
+/*  Non → supprimé ; Oui ou pas de réponse → conservé                  */
+/* ------------------------------------------------------------------ */
+let stillTimeoutMs = 25000;
+const STILL_RADIUS = 35;       // mètres
+const askedReports = new Set(); // une seule question par signalement et par session
+let stillCurrent = null, stillTimer = null;
+
+function closeStill() {
+  clearTimeout(stillTimer); stillTimer = null; stillCurrent = null;
+  $('#stillThere').hidden = true;
+}
+function askStillThere(rp) {
+  stillCurrent = rp; askedReports.add(rp.id);
+  const [emoji, label] = repCat(rp.cat);
+  $('#stillEmoji').textContent = emoji;
+  $('#stillText').textContent = `${label} signalé ici`;
+  $('#stillInfo').textContent = `le ${new Date(rp.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}${rp.note ? ' · ' + rp.note : ''}`;
+  $('#stillThere').hidden = false;
+  // barre de temps restant
+  const bar = $('#stillTimer');
+  bar.style.transition = 'none'; bar.style.width = '100%';
+  requestAnimationFrame(() => { bar.style.transition = `width ${stillTimeoutMs}ms linear`; bar.style.width = '0%'; });
+  try { navigator.vibrate?.([150, 80, 150]); } catch { /* */ }
+  if (typeof speak === 'function') speak(`${label} signalé ici. Toujours là ?`);
+  stillTimer = setTimeout(closeStill, stillTimeoutMs); // pas de réponse : on garde le signalement
+}
+$('#stillYes').addEventListener('click', () => {
+  const rp = stillCurrent; closeStill();
+  if (!rp) return;
+  const live = reports.find((x) => x.id === rp.id);
+  if (live) { live.confirmed = Date.now(); saveReports(); renderReports(); }
+  toast('Merci ! Signalement confirmé 👍');
+});
+$('#stillNo').addEventListener('click', () => {
+  const rp = stillCurrent; closeStill();
+  if (!rp) return;
+  reports = reports.filter((x) => x.id !== rp.id); saveReports(); renderReports();
+  reportsAhead = reportsAhead.filter((x) => x.id !== rp.id);
+  toast('Merci ! Signalement retiré de la carte ✅');
+});
+
+/** Vérifie régulièrement si l'on passe sur un signalement (pendant le guidage ou l'enregistrement). */
+function checkPassingReports() {
+  const active = (typeof nav !== 'undefined' && nav.on) || (typeof rec !== 'undefined' && rec.on);
+  if (!active) { if (stillCurrent) closeStill(); return; }
+  if (stillCurrent || !meMarker) return;
+  const here = meMarker.getLatLng(), now = Date.now();
+  const rp = reports.find((x) => !askedReports.has(x.id)
+    && now - x.date > 10 * 60e3                        // pas un signalement qu'on vient de créer
+    && (!x.confirmed || now - x.confirmed > 10 * 60e3)
+    && hav(here, x) < STILL_RADIUS);
+  if (rp) askStillThere(rp);
+}
+setInterval(checkPassingReports, 2000);
 
 renderReports();
 updateReportBtn();

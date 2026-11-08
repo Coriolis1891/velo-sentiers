@@ -314,3 +314,18 @@ body.recording .report-fab { bottom: calc(196px + env(safe-area-inset-bottom)); 
 .report-cats button span { font-size: 24px; }
 .pin.report span { border-color: #e8a33d; background: #fff8ec; }
 .report3d { font-size: 26px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+
+/* ---------- « Toujours là ? » ---------- */
+#stillThere { position: fixed; left: 12px; right: 12px; bottom: calc(100px + env(safe-area-inset-bottom)); z-index: 1170; background: #fff; color: #1d241f; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35); padding: 14px; border: 3px solid #e8a33d; }
+@media (min-width: 820px) { #stillThere { left: auto; right: 90px; width: 360px; } }
+body.recording #stillThere { bottom: calc(270px + env(safe-area-inset-bottom)); }
+.still-head { display: flex; gap: 10px; align-items: center; }
+#stillEmoji { font-size: 34px; }
+.still-head small { display: block; color: #5f6b62; font-size: 12px; }
+.still-q { font-size: 20px; font-weight: 800; margin: 8px 0; text-align: center; }
+.still-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.still-btns button { min-height: 58px; font-size: 17px; font-weight: 700; border-radius: 14px; }
+.still-btns .yes { background: #f2f4f1; color: #1d241f; }
+.still-btns .no { background: #2f6b3a; border-color: #2f6b3a; color: #fff; }
+.still-bar { height: 4px; background: #eee; border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.still-bar span { display: block; height: 100%; background: #e8a33d; width: 100%; }

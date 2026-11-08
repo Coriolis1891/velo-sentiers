@@ -49,6 +49,17 @@
   </section>
   <button id="btnReport" class="fab report-fab" hidden title="Signaler un problème ici" aria-label="Signaler un problème">⚠️</button>
 
+  <!-- « Toujours là ? » quand on passe sur un signalement existant -->
+  <section id="stillThere" hidden role="alertdialog" aria-labelledby="stillText">
+    <div class="still-head"><span id="stillEmoji">⚠️</span><div><b id="stillText">Signalé ici</b><small id="stillInfo"></small></div></div>
+    <p class="still-q">Toujours là ?</p>
+    <div class="still-btns">
+      <button id="stillYes" class="yes">👍 Oui</button>
+      <button id="stillNo" class="no">✅ Non, plus là</button>
+    </div>
+    <div class="still-bar"><span id="stillTimer"></span></div>
+  </section>
+
   <!-- Enregistrement GPS d'un trajet -->
   <section id="recBar" hidden aria-live="polite">
     <div class="rec-top"><span class="rec-dot"></span><b id="recTitle">Enregistrement</b></div>
