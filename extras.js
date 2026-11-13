@@ -97,6 +97,7 @@ async function open3d() {
     m.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#fff', 'line-width': 12 } });
     m.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 7 } });
     ml.ready = true;
+    m.on('zoomstart', (ev) => { if (ev.originalEvent) nav.manualUntil = Date.now() + 15000; }); // zoom aux doigts
     if (typeof reports3d === 'function') reports3d(m);
   });
 }
@@ -110,8 +111,9 @@ function update3dCamera(p, bearing) {
   if (!ml) return;
   ml.marker.setLngLat([p.lng, p.lat]).setRotation(bearing);
   // Animation maison (jumpTo image par image) : avec le relief, easeTo réajuste l'inclinaison
-  // et le zoom en fin de mouvement ; ici la caméra reste à 62° et zoom 17.
-  const m = ml.map, from = m.getCenter(), b0 = m.getBearing();
+  // et le zoom en fin de mouvement ; ici la caméra reste à 62° et le zoom suit la vitesse.
+  const m = ml.map, from = m.getCenter(), b0 = m.getBearing(), z0 = m.getZoom();
+  const z1 = navManualZoom() ? z0 : (nav.zoom3d || 17);
   const db = ((bearing - b0 + 540) % 360) - 180; // rotation par le plus court chemin
   const H = m.getContainer().clientHeight;
   const padding = { top: Math.round(H * 0.42), bottom: 30, left: 0, right: 0 }; // utilisateur dans le tiers bas
@@ -120,7 +122,7 @@ function update3dCamera(p, bearing) {
   const step = (now) => {
     if (!ml) return;
     const k = Math.min(1, (now - t0) / D), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
-    m.jumpTo({ center: [from.lng + (p.lng - from.lng) * e, from.lat + (p.lat - from.lat) * e], bearing: b0 + db * e, pitch: 62, zoom: 17, padding });
+    m.jumpTo({ center: [from.lng + (p.lng - from.lng) * e, from.lat + (p.lat - from.lat) * e], bearing: b0 + db * e, pitch: 62, zoom: z0 + (z1 - z0) * e, padding });
     if (k < 1) ml.raf = requestAnimationFrame(step);
   };
   ml.raf = requestAnimationFrame(step);
@@ -213,6 +215,7 @@ async function startNav() {
   $('#nav3d').textContent = nav.use3d ? '2D' : '3D';
   setSnap('peek');
   nav.lastP = null; nav.bearing = routeBearing(r, 0);
+  nav.speed = null; nav.prevFix = null; nav.zoom3d = null; nav.zoom2d = null; nav.manualUntil = 0;
   if (nav.use3d) set3d(true);
   setTimeout(() => map.invalidateSize(), 300);
   speak(r.hints?.length ? 'Navigation démarrée.' : 'Navigation démarrée. Instructions de virage non disponibles pour ce parcours, suivez le tracé.');
@@ -236,15 +239,65 @@ function stopNav() {
   setTimeout(() => map.invalidateSize(), 300);
 }
 
+/* ------------------------------------------------------------------ */
+/* Zoom automatique, comme un GPS : on se rapproche quand on ralentit   */
+/* ou à l'approche d'un virage, on s'éloigne quand on roule vite.       */
+/* ------------------------------------------------------------------ */
+const navManualZoom = () => Date.now() < (nav.manualUntil || 0);
+// Zoom aux doigts sur la carte 2D : le zoom automatique se met en pause 15 s
+(() => {
+  const el = map.getContainer();
+  const pause = () => { if (nav.on) nav.manualUntil = Date.now() + 15000; };
+  el.addEventListener('touchstart', (e) => { if (e.touches.length >= 2) pause(); }, { passive: true });
+  el.addEventListener('wheel', pause, { passive: true });
+  el.addEventListener('dblclick', pause);
+})();
+
+/** Vitesse lissée (m/s), donnée par le GPS ou calculée entre deux positions. */
+function updateNavSpeed(pos, p) {
+  let v = pos.coords.speed;
+  const now = pos.timestamp || Date.now();
+  if ((v == null || Number.isNaN(v)) && nav.prevFix) {
+    const dt = (now - nav.prevFix.t) / 1000;
+    if (dt > 0.5 && dt < 30) v = hav(nav.prevFix.p, p) / dt;
+  }
+  nav.prevFix = { p, t: now };
+  if (v == null || Number.isNaN(v) || v < 0 || v > 25) return nav.speed || 0;
+  nav.speed = nav.speed == null ? v : nav.speed * 0.6 + v * 0.4;
+  return nav.speed;
+}
+
+/** Zooms cibles selon la vitesse (km/h) et la distance au prochain virage (m). */
+function navZoomTargets(kmh, dTurn) {
+  let z3 = kmh < 6 ? 17.8 : kmh < 12 ? 17.4 : kmh < 18 ? 17 : kmh < 25 ? 16.6 : 16.2; // 3D : progressif
+  let z2 = kmh < 10 ? 18 : kmh < 22 ? 17 : 16;                                     // 2D : niveaux entiers (carte nette)
+  if (dTurn < 90) { z3 = Math.max(z3, 17.6); z2 = Math.min(18, Math.max(z2, kmh > 22 ? 17 : 18)); } // virage proche
+  return { z3, z2 };
+}
+
+function applyNavZoom(pos, p, dTurn) {
+  const kmh = updateNavSpeed(pos, p) * 3.6;
+  const { z3, z2 } = navZoomTargets(kmh, dTurn);
+  // 3D : approche progressive de la cible
+  nav.zoom3d = nav.zoom3d == null ? z3 : nav.zoom3d + (z3 - nav.zoom3d) * 0.45;
+  // 2D : on change de niveau seulement si la cible est confirmée par deux positions de suite
+  if (z2 === nav.z2cand) nav.z2count = (nav.z2count || 0) + 1; else { nav.z2cand = z2; nav.z2count = 1; }
+  if (nav.zoom2d == null || (nav.z2count >= 2 && z2 !== nav.zoom2d)) nav.zoom2d = z2;
+  nav.kmh = kmh;
+}
+
 function onNavPosition(pos) {
   if (!nav.on) return;
   const r = state.route;
   nav.lastFix = Date.now();
   const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
   const ll = showMe(pos);
-  map.setView(ll, Math.max(map.getZoom(), 16), { animate: true });
-
   const pr = projectOnRoute(r, p, nav.pi);
+  const next = nav.hints?.[nav.k];
+  applyNavZoom(pos, p, next ? next.at - pr.along : Infinity);
+  if (navManualZoom()) map.panTo(ll, { animate: true });
+  else map.setView(ll, nav.zoom2d, { animate: true });
+
   const tol = Math.max(35, Math.min(pos.coords.accuracy || 0, 80));
   if (pr.d > tol) {
     if (pos.coords.heading != null && !Number.isNaN(pos.coords.heading) && (pos.coords.speed || 0) > 1.5) nav.bearing = pos.coords.heading;

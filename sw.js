@@ -1,5 +1,5 @@
 // Service worker : l'application et les cartes téléchargées fonctionnent sans réseau.
-const CACHE = 'sentiers-velo-v14';
+const CACHE = 'sentiers-velo-v15';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'extras.js', 'rides.js', 'reports.js', 'manifest.webmanifest', 'profiles/gravel.brf',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
